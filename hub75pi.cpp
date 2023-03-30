@@ -43,19 +43,104 @@ Pixel alpha_blend(unsigned char alpha, const Pixel& foreground, const Pixel& bac
     return result;
 }
 
+bool choose_glyph(unsigned int &width, unsigned int &height, const unsigned char* &pixels, char digit) {
+    switch (digit) {
+    case '0':
+        width = zero::width;
+        height = zero::height;
+        pixels = &zero::pixels[0][0];
+        break;
+    case '1':
+        width = one::width;
+        height = one::height;
+        pixels = &one::pixels[0][0];
+        break;
+    case '2':
+        width = two::width;
+        height = two::height;
+        pixels = &two::pixels[0][0];
+        break;
+    case '3':
+        width = three::width;
+        height = three::height;
+        pixels = &three::pixels[0][0];
+        break;
+    case '4':
+        width = four::width;
+        height = four::height;
+        pixels = &four::pixels[0][0];
+        break;
+    case '5':
+        width = five::width;
+        height = five::height;
+        pixels = &five::pixels[0][0];
+        break;
+    case '6':
+        width = six::width;
+        height = six::height;
+        pixels = &six::pixels[0][0];
+        break;
+    case '7':
+        width = seven::width;
+        height = seven::height;
+        pixels = &seven::pixels[0][0];
+        break;
+    case '8':
+        width = eight::width;
+        height = eight::height;
+        pixels = &eight::pixels[0][0];
+        break;
+    case '9':
+        width = nine::width;
+        height = nine::height;
+        pixels = &nine::pixels[0][0];
+        break;
+    case '.':
+        width = decimal::width;
+        height = decimal::height;
+        pixels = &decimal::pixels[0][0];
+        break;
+    default:
+        width = 0;
+        height = 0;
+        pixels = nullptr;
+        return false;
+    }
+    return true;
+}
+
+bool draw_glyph(int x_off, int y_off, unsigned int width, unsigned int height, const unsigned char *pixels, Pixel& foreground, Pixel& background) {
+    if (x_off >= WIDTH) {
+        return true;
+    }
+    if ((x_off + (int)width) < 0) {
+        return true;
+    }
+
+    bool restart = true;
+    for (uint y=0; y<std::min((unsigned int)HEIGHT, height); y++) {
+        for (uint x=0; x<width; x++) {
+            int pixel_x = (int)x + x_off;
+            if (pixel_x >= 0 && pixel_x < WIDTH) {
+                restart = false;
+                unsigned char alpha = pixels[y*width+x];
+                hub75.set_color((unsigned int)pixel_x, y + y_off, alpha_blend(alpha, foreground, background));
+            }
+        }
+    }
+
+    return restart;
+}
+
 int main() {
     stdio_init_all();
 
-    //vreg_set_voltage(VREG_VOLTAGE_1_20);
     sleep_us(100);
     set_sys_clock_khz(266000, true);
 
     hub75.start(dma_complete);
 
     int x_start = 0;
-
-    // Basic loop to draw something to the screen.
-    // This gets the distance from the middle of the display and uses it to paint a circular colour cycle.
     while (true) {
 
         hub75.background = hsv_to_rgb(millis() / 10000.0f, 1.0f, 0.5f);
@@ -64,89 +149,21 @@ int main() {
         bool restart = true;
         int x_off = x_start;
         int y_off = 14;
+
         const unsigned int num_char = strlen(digits);
         for (unsigned int i=0; i<num_char; i++) {
             unsigned int width = 0;
             unsigned int height = 0;
             const unsigned char* pixels;
             char digit = digits[i];
-            switch (digit) {
-            case '0':
-                width = zero::width;
-                height = zero::height;
-                pixels = &zero::pixels[0][0];
-                break;
-            case '1':
-                width = one::width;
-                height = one::height;
-                pixels = &one::pixels[0][0];
-                break;
-            case '2':
-                width = two::width;
-                height = two::height;
-                pixels = &two::pixels[0][0];
-                break;
-            case '3':
-                width = three::width;
-                height = three::height;
-                pixels = &three::pixels[0][0];
-                break;
-            case '4':
-                width = four::width;
-                height = four::height;
-                pixels = &four::pixels[0][0];
-                break;
-            case '5':
-                width = five::width;
-                height = five::height;
-                pixels = &five::pixels[0][0];
-                break;
-            case '6':
-                width = six::width;
-                height = six::height;
-                pixels = &six::pixels[0][0];
-                break;
-            case '7':
-                width = seven::width;
-                height = seven::height;
-                pixels = &seven::pixels[0][0];
-                break;
-            case '8':
-                width = eight::width;
-                height = eight::height;
-                pixels = &eight::pixels[0][0];
-                break;
-            case '9':
-                width = nine::width;
-                height = nine::height;
-                pixels = &nine::pixels[0][0];
-                break;
-            case '.':
-                width = decimal::width;
-                height = decimal::height;
-                pixels = &decimal::pixels[0][0];
-                break;
-            default:
-                break;
+            if (!choose_glyph(width, height, pixels, digit)) {
+                continue;
             }
-
-            if (x_off <= WIDTH && (x_off + (int)width) >= 0) {
-                for (uint y=0; y<std::min((unsigned int)HEIGHT, height); y++) {
-                    for (uint x=0; x<width; x++) {
-                        int pixel_x = (int)x + x_off;
-                        if (pixel_x >= 0 && pixel_x < WIDTH) {
-                            restart = false;
-                            unsigned char alpha = pixels[y*width+x];
-                            hub75.set_color((unsigned int)pixel_x, y + y_off, alpha_blend(alpha, foreground, hub75.background));
-                        }
-                    }
-                }
-            }
-
+            restart &= draw_glyph(x_off, y_off,  width, height, pixels, foreground, hub75.background);
             x_off += width;
         }
 
-        hub75.flip(false); // Flip and clear to the background colour
+        hub75.flip(false);
         sleep_ms(100 / 60);
 
         x_start -= 1;
