@@ -140,7 +140,8 @@ int main() {
 
     hub75.start(dma_complete);
 
-    int x_start = 0;
+    int x_start = 75;
+    char prev_digit = 'X';
     while (true) {
 
         hub75.background = hsv_to_rgb(millis() / 10000.0f, 1.0f, 0.5f);
@@ -159,8 +160,16 @@ int main() {
             if (!choose_glyph(width, height, pixels, digit)) {
                 continue;
             }
+            // This is my kerning table!
+            if (prev_digit == '7' && digit == '4') {
+                x_off -= 2;
+            } else {
+                x_off += 2;
+            }
             restart &= draw_glyph(x_off, y_off,  width, height, pixels, foreground, hub75.background);
             x_off += width;
+
+            prev_digit = digit;
         }
 
         hub75.flip(false);
@@ -168,7 +177,8 @@ int main() {
 
         x_start -= 1;
         if (restart) {
-            x_start = 0;
+            x_start = 75;
+            prev_digit = 'X';
         }
     }
 }
